@@ -30,14 +30,13 @@ Window.prototype = {
       this.sum = 0;
     }
 }
-var lossWindow = new Window(150);
 
 
 // define layers
 var layer_defs = [];
-layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:13});
+layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:3});
+layer_defs.push({type:'fc', num_neurons:30, activation:'relu'});
 layer_defs.push({type:'fc', num_neurons:20, activation:'relu'});
-layer_defs.push({type:'fc', num_neurons:20, activation:'tanh'});
 layer_defs.push({type:'regression', num_neurons:1});
  
 // create a net
@@ -45,96 +44,74 @@ var net = new convnetjs.Net();
 net.makeLayers(layer_defs);
  
 // train network
-var trainer = new convnetjs.SGDTrainer(net, {method: 'adagrad', learning_rate: 1, l2_decay: 0.001, batch_size: 5, momentum:0.1});
-
-var names = {"Iris-setosa" : 0,
-			"Iris-versicolor": 1,
-			"Iris-virginica":2}
+// var trainer = new convnetjs.SGDTrainer(net, {method: 'adagrad', learning_rate: 0.001, l2_decay: 0.001, batch_size: 3, momentum:0.0});
+var trainer = new convnetjs.Trainer(net, {method: 'adadelta', l2_decay: 0.001,
+                                    batch_size: 10});
 
 var formatValues = function(row) {
 	var x = new convnetjs.Vol([
-		row["CRIM"],
-		row["ZN"], 
-		row["INDUS"],
-		row["CHAS"], 
-		row["NOX"], 
-		row["RM"], 
-		row["AGE"], 
-		row["DIS"], 
-		row["RAD"],
-		row["TAX"],
-		row["PTRATIO"],
-		row["B"],
-		row["LSTAT"]]);
+		parseFloat(row["LSTAT"]),
+		parseFloat(row["RM"]), 
+		parseFloat(row["DIS"]), 
+		// parseFloat(row["CRIM"]),
+		// parseFloat(row["NOX"]), 
+		// parseFloat(row["PTRATIO"]),
+		// parseFloat(row["TAX"]),
+		// parseFloat(row["AGE"]), 
+		// parseFloat(row["B"]),
+		// parseFloat(row["INDUS"]),
+		// parseFloat(row["CHAS"]), 
+		// parseFloat(row["RAD"]),
+		// parseFloat(row["ZN"])
+		]);
 	// target
-	var y = row["MEDV"];
-	// console.log(dict[row["class"]])
-	
+	var y = parseFloat(row["MEDV"]);
+
 	return {x : x, y : y};
 }
 
-function update(){
-  // forward prop the data
-  
-  var netx = new convnetjs.Vol(1,1,1);
-  var N = df.length;
-  var avloss = 0.0;
 
-  console.log('I am in update mode');
-  for(var iters=0;iters<50;iters++) {
-    for(var ix=0;ix<N;ix++) {
-      netx.w = df[ix];
-      var stats = trainer.train(netx, label[ix]);
-      avloss += stats.loss;
-  		console.log(avloss)
-    }
-  }
-  avloss /= N*iters;
-
-}
-
-var df = [];
-var label = [];
+var train = [];
+var test = [];
 
 var N_TRAIN = 400;
+var ITER = 10;
+var lossWindow = new Window(N_TRAIN);
 var k = 0;
-var test_nb = 0;
-var error = 0.0;
 var square_error = 0.0
 
 fs.createReadStream("data/boston.csv")
 	.pipe(csv({separator: ','}))
 	.on('data', function(data) {
+		var formated = formatValues(data);
 		if (k < N_TRAIN){
-
-			var formated = formatValues(data);
-
-			df.push([formated.x]);
-			label.push([formated.y]);
-
-	  	var stats = trainer.train(formated.x, formated.y);
-	  	lossWindow.add(stats.l2_decay_loss);
-	  	console.log('loss', lossWindow.get_average())
-	  	k++
-	  } else {
-			// Testing our model
-			
-			// loop our train
-			//update()
-
-			//testing
-			var test = formatValues(data);
-			var predicted = net.forward(test.x)
-			
-			
-			error = predicted.w[0] - test.y;
-			square_error += error * error;
-			console.log('Predicted', predicted.w[0], 'Expected', test.y);
-			test_nb++;
+			train.push(formated);
+		  	k++;
+	  	} else {
+	  		test.push(formated);
 	  	}
 	})
 	.on("end", function(){
-		console.log('Number of test', test_nb);
-		console.log("MSE", square_error / test_nb);
+
+		//train
+
+		for(var iters=0; iters<ITER; iters++) {
+			train.forEach(function(v){
+				var stats = trainer.train(v.x, v.y);
+				lossWindow.add(stats.l2_decay_loss);
+			})
+			console.log("step ", iters, " on ", ITER, ' loss', lossWindow.get_average());
+		}
+
+		//testing
+
+		test.forEach(function(v){
+			var predicted = net.forward(v.x);
+			var error = predicted.w[0] - v.y;
+			square_error += error * error;
+			console.log('Predicted', predicted.w[0], 'Expected', v.y);
+		})
+		
+		console.log("MSE", square_error / test.length);
 		console.log("Finished")
 	});
