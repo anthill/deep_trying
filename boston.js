@@ -4,6 +4,20 @@ var convnetjs = require("convnetjs");
 var fs = require('fs');
 var csv = require('csv-parser');
 
+
+//// PARAMETERS
+
+var N_TRAIN = 400;
+var ITER = 100;
+
+// define layers
+var layer_defs = [];
+layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:3});
+layer_defs.push({type:'fc', num_neurons:30, activation:'relu'});
+layer_defs.push({type:'fc', num_neurons:20, activation:'relu'});
+layer_defs.push({type:'regression', num_neurons:1});
+
+
 // error window
 var Window = function(size, minsize) {
     this.v = [];
@@ -31,14 +45,6 @@ Window.prototype = {
     }
 }
 
-
-// define layers
-var layer_defs = [];
-layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:3});
-layer_defs.push({type:'fc', num_neurons:30, activation:'relu'});
-layer_defs.push({type:'fc', num_neurons:20, activation:'relu'});
-layer_defs.push({type:'regression', num_neurons:1});
- 
 // create a net
 var net = new convnetjs.Net();
 net.makeLayers(layer_defs);
@@ -74,8 +80,6 @@ var formatValues = function(row) {
 var train = [];
 var test = [];
 
-var N_TRAIN = 400;
-var ITER = 10;
 var lossWindow = new Window(N_TRAIN);
 var k = 0;
 var square_error = 0.0
