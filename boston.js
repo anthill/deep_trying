@@ -8,13 +8,14 @@ var csv = require('csv-parser');
 //// PARAMETERS
 
 var N_TRAIN = 400;
-var ITER = 100;
+var ITER = 1000;
 
 // define layers
 var layer_defs = [];
-layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:3});
-layer_defs.push({type:'fc', num_neurons:30, activation:'relu'});
-layer_defs.push({type:'fc', num_neurons:20, activation:'relu'});
+layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:13});
+layer_defs.push({type:'fc', num_neurons:40, activation:'tanh'});
+layer_defs.push({type:'fc', num_neurons:40, activation:'relu'});
+layer_defs.push({type:'fc', num_neurons:20, activation:'sigmoid'});
 layer_defs.push({type:'regression', num_neurons:1});
 
 
@@ -51,27 +52,28 @@ net.makeLayers(layer_defs);
  
 // train network
 // var trainer = new convnetjs.SGDTrainer(net, {method: 'adagrad', learning_rate: 0.001, l2_decay: 0.001, batch_size: 3, momentum:0.0});
-var trainer = new convnetjs.Trainer(net, {method: 'adadelta', l2_decay: 0.001,
-                                    batch_size: 10});
+var trainer = new convnetjs.Trainer(net, {method: 'adagrad', l2_decay: 0.001,
+                                    			batch_size: 1, learning_rate: 0.01,
+                                    			momentum:0.0});
 
 var formatValues = function(row) {
 	var x = new convnetjs.Vol([
 		parseFloat(row["LSTAT"]),
 		parseFloat(row["RM"]), 
 		parseFloat(row["DIS"]), 
-		// parseFloat(row["CRIM"]),
-		// parseFloat(row["NOX"]), 
-		// parseFloat(row["PTRATIO"]),
-		// parseFloat(row["TAX"]),
-		// parseFloat(row["AGE"]), 
-		// parseFloat(row["B"]),
-		// parseFloat(row["INDUS"]),
-		// parseFloat(row["CHAS"]), 
-		// parseFloat(row["RAD"]),
-		// parseFloat(row["ZN"])
+		parseFloat(row["CRIM"]),
+		parseFloat(row["NOX"]), 
+		parseFloat(row["PTRATIO"]),
+		parseFloat(row["TAX"]),
+		parseFloat(row["AGE"]), 
+		parseFloat(row["B"]),
+		parseFloat(row["INDUS"]),
+		parseFloat(row["CHAS"]), 
+		parseFloat(row["RAD"]),
+		parseFloat(row["ZN"])
 		]);
 	// target
-	var y = parseFloat(row["MEDV"]);
+	var y = [parseFloat(row["MEDV"])]; // this must be a list
 
 	return {x : x, y : y};
 }
@@ -100,11 +102,12 @@ fs.createReadStream("data/boston.csv")
 		//train
 
 		for(var iters=0; iters<ITER; iters++) {
-			train.forEach(function(v){
-				var stats = trainer.train(v.x, v.y);
-				lossWindow.add(stats.l2_decay_loss);
+			train.forEach(function(row){
+				var stats = trainer.train(row.x, row.y);
+				lossWindow.add(stats.loss);
 			})
-			console.log("step ", iters, " on ", ITER, ' loss', lossWindow.get_average());
+			if (iters % 10 === 0) 
+				console.log("step ", iters, " on ", ITER, ' loss', lossWindow.get_average());
 		}
 
 		//testing
