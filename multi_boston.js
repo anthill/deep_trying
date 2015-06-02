@@ -8,15 +8,15 @@ var csv = require('csv-parser');
 //// PARAMETERS
 
 var N_TRAIN = 400;
-var ITER = 400;
+var ITER = 500;
 
 // define layers
 var layer_defs = [];
-layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:13});
+layer_defs.push({type:'input', out_sx:1, out_sy:1, out_depth:12});
 layer_defs.push({type:'fc', num_neurons:20, activation:'tanh'});
 layer_defs.push({type:'fc', num_neurons:40, activation:'relu'});
 layer_defs.push({type:'fc', num_neurons:20, activation:'sigmoid'});
-layer_defs.push({type:'regression', num_neurons:1});
+layer_defs.push({type:'regression', num_neurons:2});
 
 
 // error window
@@ -58,9 +58,9 @@ var trainer = new convnetjs.Trainer(net, {method: 'adagrad', l2_decay: 0.001,
 
 var formatValues = function(row) {
 	var x = new convnetjs.Vol([
-		parseFloat(row["LSTAT"]),
+		parseFloat(row["ZN"]),
 		parseFloat(row["RM"]), 
-		parseFloat(row["DIS"]), 
+		parseFloat(row["DIS"]),
 		parseFloat(row["CRIM"]),
 		parseFloat(row["NOX"]), 
 		parseFloat(row["PTRATIO"]),
@@ -69,11 +69,12 @@ var formatValues = function(row) {
 		parseFloat(row["B"]),
 		parseFloat(row["INDUS"]),
 		parseFloat(row["CHAS"]), 
-		parseFloat(row["RAD"]),
-		parseFloat(row["ZN"])
+		parseFloat(row["RAD"])
 		]);
 	// target
-	var y = [parseFloat(row["MEDV"])]; // this must be a list
+	var y = [parseFloat(row["MEDV"]),
+			parseFloat(row["LSTAT"]) 
+			]; // this must be a list
 
 	return {x : x, y : y};
 }
@@ -114,9 +115,9 @@ fs.createReadStream("data/boston.csv")
 
 		test.forEach(function(v){
 			var predicted = net.forward(v.x);
-			var error = predicted.w[0] - v.y;
+			var error = (predicted.w[0] - v.y[0]) + (predicted.w[1] - v.y[1]) ;
 			square_error += error * error;
-			console.log('Predicted', predicted.w[0], 'Expected', v.y);
+			console.log('Predicted', predicted.w[0], 'et', predicted.w[1], 'Expected', v.y[0], 'et', v.y[1]);
 		})
 		console.log("MSE", square_error / test.length);
 		console.log("Finished")
