@@ -84,33 +84,24 @@ var train = [];
 var test = [];
 
 var lossWindow = new Window(N_TRAIN);
-var k = 0;
 var square_error = 0.0
 
 fs.createReadStream("data/boston.csv")
 	.pipe(csv({separator: ','}))
 	.on('data', function(data) {
+	// Train only in steaming
 		var formated = formatValues(data);
-		if (k < N_TRAIN){
+		if ( Math.random() < 0.80) {
 			train.push(formated);
-		  	k++;
+			var stats = trainer.train(formated.x, formated.y);
+			lossWindow.add(stats.loss);
 	  	} else {
 	  		test.push(formated);
 	  	}
+
+	  	
 	})
 	.on("end", function(){
-
-		//train
-
-		for(var iters=0; iters<ITER; iters++) {
-			train.forEach(function(row){
-				var stats = trainer.train(row.x, row.y);
-				lossWindow.add(stats.loss);
-			})
-			if (iters % 10 === 0) {
-				console.log("step ", iters, " on ", ITER, ' loss', lossWindow.get_average());
-			}
-		}
 
 		//testing
 
@@ -122,4 +113,6 @@ fs.createReadStream("data/boston.csv")
 		})
 		console.log("MSE", square_error / test.length);
 		console.log("Finished")
+		console.log("Taille du train :", train.length);
+		console.log("Taille du test :", test.length)
 	});
