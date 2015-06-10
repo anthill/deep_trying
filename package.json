@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "convnetjs": "^0.3.0",
-    "csv-parser": "^1.6.0"
+    "csv-parser": "^1.6.0",
+    "get-pixels": "^3.2.2"
   }
 }
