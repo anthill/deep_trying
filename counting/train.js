@@ -3,7 +3,8 @@
 var convnetjs = require("convnetjs");
 var fs = require('fs');
 var csv = require('csv-parser');
-
+var getPixels = require("get-pixels");
+var glob = require("glob");
 
 //// PARAMETERS
 var N_TRAIN = 400;
@@ -28,16 +29,6 @@ layer_defs.push({type:'pool', sx:2, stride:2});
 // layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});
 // layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'softmax', num_classes:10});
-
-var getPixels = require("get-pixels")
-getPixels("data/counting_samples/1.png", function(err, pixels) {
-  if(err) {
-    console.log("Bad image path")
-    return
-  }
-  p=pixels
-  console.log("got pixels", pixels.shape.slice())
-})
 
 // error window
 var Window = function(size, minsize) {
@@ -72,24 +63,28 @@ net.makeLayers(layer_defs);
 var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:4, l2_decay:0.0001});
 
 
-var formatValues = function(row) {
-  var x = new convnetjs.Vol([
-    parseFloat(row["LSTAT"]),
-    parseFloat(row["RM"]), 
-    parseFloat(row["DIS"]), 
-    parseFloat(row["CRIM"]),
-    parseFloat(row["NOX"]), 
-    parseFloat(row["PTRATIO"]),
-    parseFloat(row["TAX"]),
-    parseFloat(row["AGE"]), 
-    parseFloat(row["B"]),
-    parseFloat(row["INDUS"]),
-    parseFloat(row["CHAS"]), 
-    parseFloat(row["RAD"]),
-    parseFloat(row["ZN"])
-    ]);
+var formatValues = function(file, number) {
+
+  var pathImage = "../data/counting_samples/" + file;
+  console.log("Analyse image :", pathImage);
+  var image;
+  
+  getPixels(pathImage, function(err, pixels) {
+    if(err) {
+      console.log(err);
+      return
+    }
+    console.log("got pixels", pixels.shape.slice())
+    image = pixels
+  })
+
+  console.log("TEST", image);
+
+  var imageData = listPixel.map(function(i){ return image.data[i]});  
+
+  var x = new convnetjs.Vol(imageData);
   // target
-  var y = [parseFloat(row["MEDV"])]; // this must be a list
+  var y = [parseFloat(row[number])]; // this must be a list
 
   return {x : x, y : y};
 }
@@ -102,38 +97,59 @@ var lossWindow = new Window(N_TRAIN);
 var k = 0;
 var square_error = 0.0
 
-fs.createReadStream("data/boston.csv")
+
+var nombre = image_dimension * image_dimension;
+var listPixel = [];
+
+// create list of pixel
+for (var iters=0; iters<nombre; iters = iters + 4) {
+  listPixel.push(iters.toString());
+}
+
+
+var fs = require('fs');
+fs.createReadStream("../data/counting.csv")
   .pipe(csv({separator: ','}))
   .on('data', function(data) {
-    var formated = formatValues(data);
-    if (k < N_TRAIN){
-      train.push(formated);
-        k++;
-      } else {
-        test.push(formated);
-      }
-  })
-  .on("end", function(){
+    formatValues(data.file, data.number)
+});
 
-    //train
 
-    for(var iters=0; iters<ITER; iters++) {
-      train.forEach(function(row){
-        var stats = trainer.train(row.x, row.y);
-        lossWindow.add(stats.loss);
-      })
-      if (iters % 10 === 0) 
-        console.log("step ", iters, " on ", ITER, ' loss', lossWindow.get_average());
-    }
+// glob("../data/counting_samples/*png", function (er, imagePath) {
+//   formated(imagePath)
+// })
+// fs.createReadStream("data/boston.csv")
+//   .pipe(csv({separator: ','}))
+//   .on('data', function(data) {
+//     var formated = formatValues(data);
+//     if (k < N_TRAIN){
+//       train.push(formated);
+//         k++;
+//       } else {
+//         test.push(formated);
+//       }
+//   })
+//   .on("end", function(){
 
-    //testing
+//     //train
 
-    test.forEach(function(v){
-      var predicted = net.forward(v.x);
-      var error = predicted.w[0] - v.y;
-      square_error += error * error;
-      console.log('Predicted', predicted.w[0], 'Expected', v.y);
-    })
-    console.log("MSE", square_error / test.length);
-    console.log("Finished")
-  });
+//     for(var iters=0; iters<ITER; iters++) {
+//       train.forEach(function(row){
+//         var stats = trainer.train(row.x, row.y);
+//         lossWindow.add(stats.loss);
+//       })
+//       if (iters % 10 === 0) 
+//         console.log("step ", iters, " on ", ITER, ' loss', lossWindow.get_average());
+//     }
+
+//     //testing
+
+//     test.forEach(function(v){
+//       var predicted = net.forward(v.x);
+//       var error = predicted.w[0] - v.y;
+//       square_error += error * error;
+//       console.log('Predicted', predicted.w[0], 'Expected', v.y);
+//     })
+//     console.log("MSE", square_error / test.length);
+//     console.log("Finished")
+//   });

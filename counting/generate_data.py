@@ -7,6 +7,8 @@ from pylab import rcParams
 from matplotlib.patches import Rectangle
 import random 
 import os
+import glob
+
 
 FIG_NUMBER = 100
 MAX_POINTS = 10
@@ -38,5 +40,6 @@ for num_fig in range(FIG_NUMBER):
 
 
 with open("../data/counting.csv", "w") as outfile:
+	outfile.write("file,number\n")
 	for row in output:
 		outfile.write(",".join(row) + "\n")
